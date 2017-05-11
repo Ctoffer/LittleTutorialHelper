@@ -1,0 +1,13 @@
+Hier steht dann normalerweise ein Text, der an alle Studenten rausgeht.
+Dieser Text kann einfach so geschrieben oder HTML-Sequenzen wie
+<u>underline</u> enthalten.
+
+Falls ihr wollt, dass die EInrückung erhalten bleibt, weil ihr ein Codebsp. macht,
+dann nutzt '< code > </ code >' (Leerzeichen dienen hier zum escapen xD)
+
+<code>
+def printHello(name):
+    print('Hello %s' % name, end = '!\n')
+
+printHello('Christopher')
+</code>

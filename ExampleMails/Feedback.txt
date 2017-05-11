@@ -1,0 +1,33 @@
+Hier steht dann ein für jede Abgabe spezifisches Feedback drin.
+
+In der Regel hat es den Aufbau:
+
+#Aufgabe 1
+Hier steht wieso ihr Punkte abzieht. Darunter wie viel.
+#[-1.5]
+Das hier ist auch ein Abzug:
+#[0.5]
+Falls mal was besonders gut war, könnt ihr mit + auch Bonuspunkte vergeben.
+#[+1]
+#SUM[-1.0]
+
+#Aufgabe 2
+Ihr wollt einen Beispielcode geben, kein Problem nutzt #>Code #<
+
+#>Code
+
+def sickFunction(x, y, z):
+    return x * y - z
+
+for x in range(10):
+    for y in range(10):
+        for z in range(10):
+            print(sickFunction(x, y, z))
+
+#<
+
+#SUM[-0.0]
+
+#Aufgabe 3
+
+#SUM[-0.0]

@@ -1,0 +1,254 @@
+Ich entschuldige mich jetzt schonmal für schlechten Code und schlechtes Deutsch.
+
+Alle ausführbaren Skripte fangen mit einem Großbuchstaben an und sind in CamelCase
+geschrieben. Alle anderen Dokumente sind Module und enthalten die eigentliche
+(fast nicht dokumentierte) Magie. Ich versuche das noch in den nächsten Tagen
+nachzubessern.
+Ich habe alle Skripte auf Ubuntu mit python3.5 getestet. An sich funktionieren
+die Skripts auch mit 3.6, aber benötigte Module müssen installiert sein.
+Es könnte (vermehrt unter Windows) zu einem Problem mit der 'rarfile' kommen.
+Unter Windows muss dazu WinRar installiert sein und in eurem PATH gesetzt sein.
+Habe das bis jetzt noch nicht auf meinem Rechner weiter verfolgt.
+
+Es empfiehlt sich für diese Skripts Aliase anzulegen, um sie besser von der
+Konsole aus benutzen zu können.
+
+GMDCreator.py
+=============
+
+!!! Dieses Skript zuerst ausführen (benötigt superuser Rechte um fehlende Module
+zu installieren). !!!
+Das Skript legt in dem Ordner in dem es ausgeführt wird den Ordner
+'GlobalMetaData' an. In diesem Ordner werden diverse Dateien erzeugt, mit deren
+Hilfe z.B. Namen gefiltert werden können.
+Die wichtigste Datei ist 'MetaData.txt'. Diese Datei enthält alle Account-Daten,
+die für logins gebraucht werden. Beachtet hierbei, dass die Passwörter nicht
+verschlüsselt sind, sondern lediglich etwas unleserlich gemacht wurden, sodass
+ein Mensch sie nicht direkt ablesen kann.
+Folgende Konstanten werden angelegt:
+
+THIS_SUBJ: Tag der für Antwortmails benutzt wird (z.B. ALDA-17)
+
+MÜSLI_USER, MÜSLI_PASSW: Account-Daten für das MÜSLI
+MOODLE_USER, MOODLE_PASSW: Account-Daten für Moodle
+EMAIL_USER, EMAIL_PASSW: Uni-Mail-Authentifizierung
+
+MY_FNAME: Vorname, wird für Antwortmails gebraucht
+MY_LNAME: Nachname, wird für Ordnersyntax gebraucht
+MY_MAIL:  Eure Mail, wird für Antwortmails gebraucht
+
+FACILITY, SUB_FACILITY, COURSE, COURSE_LINK: Daten um den Kurst um Moodle zu
+                                             finden
+MAIL_ITEMPLATE, MAIL_RTEMPLATE: Absolute Dateipfade auf die Mail-templates
+
+Um nur Dateien downloaden zu können sind MÜSLI_USER, MÜSLI_PASSW,
+MOODLE_USER, MOODLE_PASSW, MY_LNAME und COURSE_LINK erforderlich. Der Rest ist
+für weitere Skripte, die die Feedbackrücksendung an die Studis betreffen
+notwendig.
+
+Die zweite wichtige Datei ist 'StudentsList.txt', wo alle Daten über Studenten
+gespeichert sind. Diese Datei wird aus den Tutorienlisten des MÜSLI gewonnen und
+manuellen Ergänzungen in den Dateien Imported.txt und Exported.txt.
+In der Datei Imported.txt werden die Studenten eingetragen, die bei einem anderen
+Tutor sind, aber von euch korrigiert werden.
+In der Datei Exported.txt werden die Studenten eingetragen, die bei euch im
+Tutorium sind, aber von einem anderen Tutor korrigiert werden.
+Diese Dreiteilung drückt sich in StudentsList in der Spalte 'Status' aus.
+
+Alle nachfolgenden Skripts funktionieren nur in dem Ordner, in dem der Ordner
+'GlobalMetaData' liegt oder einem seiner Unterordner-
+
+#Update 11.05.2017
+Wenn ihr das Skript nochmal ausführt, könnt ihr Dateien nachträglich noch bearbeiten.
+Bearbeiten heißt im Moment, löschen und komplett neu aufsetzten, abgesehen von
+'Imported.txt' hier stehen die Optionen:
+Override, Modify (enthält auch löschen von einzelnen Einträgen) und Append,
+wo ihr einfach neue Einträge ergänzen könnt.
+
+StudentInfoFinder.py
+====================
+
+Dieses Skript ist dafür da, um alle verfügbaren Informationen zu einem Studenten
+auf der Konsole anzeigen zu lassen. So könnt ihr zum Beispiel nachschauen ob und
+in welcher Übungsgruppe ein Student ist, bzw. ob ihr in korrigiert.
+Falls ihr ein Konsolenargument übergebt wird dieses als Suchparameter benutzt.
+
+SubmissionLoader.py
+===================
+
+Das Skript zum Herunterladen von Abgaben. Startet das Skript mit dem Argument
+--nr <Zettelnummer> der gebt den Parameter nach Start an. Oder falls ihr nur Archive
+entpacken wollt (ihr hattet sie schon gedownloadet) könnt ihr das Argument
+--only-unpack benutuen. Die Zettelnr wird trotzdem benötigt, um den Ordner zu
+finden.
+Das Skript erzeugt im aktuellen Verzeichnis einen Ordner mit dem Namen
+Blatt_<Zettelnummer>.
+Dort werden 2 Ordner 00_Origin und 01_Working angelegt. In Origin liegen die
+Originalarchivdateien, so wie sie aus dem Moodle gedownloadet wurden und
+in Working die sortierten entpackten.
+Die einzige Änderung die in Origin gem8 wird ist, dass die Archive in passende
+Syntax überführt werden. Die Syntax lautet:
+<TUTOR_LASTNAME>_Blatt<Zettelnr>_Vorname1-Nachname1_Vorname2-Nachname2.zip
+Alternativ kann nach einem Nachnamen der Ausdruck (Te-Utor) stehen, um auf einen
+anderen Tutor hinzuweise. Durch die Metadaten wird das aber ein wenig überflüssig.
+Erlaubte Archivtypen sind:
+zip, rar, tar und tar.gz
+
+Abweichung von der Syntax in den Abgaben:
+Das Skript enthät eine Autokorrektur, die versucht aus dem Dateinamen alle
+relevanten Informationen zu ziehen. Minimalform ist:
+Vorname1Nachname1 Vorname2Nachname2.<Typ>
+Space und Komma wird dann mit underscore ersetzt und mit Hilf von Namenssuche
+wird dann versucht die Person eindeutig zu matchen.
+Sollte dies nicht gelingen ist eine manuelle Korrektur erforderlich. Diese MUSS
+als Ergebnisname ein syntaktisch korrektes Archiv sein.
+Sollte kein Archiv abgegeben worden sein, so benennt die Datei als zip, denn
+dann wird eine zip um diese Datei herumgekapselt.
+
+Download:
+Das Skript loggt sich im Moodle ein und navigiert zur Abgabe. Dort wird die Option
+alle anzeigen ausgewählt und alle Reihen aufgenommen. Jede Reihe wird dann mit
+den Namen in StudentsList.txt abgeglichen. Exportierte Studenten werden aus der
+Suche ausgenommen, importierte berücksichtigt.
+Ein Downloadprotokoll wird in Origin angelegt, wo ihr nachschauen könnt, wer die
+Datei hochgeladen hat, wann (und ob sie zu spät war) oder wie die Datei vor
+einer Korrektur hieß (Direktlink zum Download ist ebenfalls gelistet).
+In Working werden noch zu den Ordnern, in die die Abgabe sortiert werden zwei
+Dateien angelegt.
+GlobalFeedback.txt ist eine Datei in der ihr ein Feedback schreiben könnt, was
+alle Studenten eurer Übungsgruppe zu lesen bekommen. Dies ist aber nur der Fall,
+wenn ihr auch die Rücksendung durch Mails benutzt.
+In der Datei MaxCredits.txt stehen die maximalen Punkte die es pro Aufgabe gab.
+Diese Datei wird gebraucht um später feststellen zu können wie viel Punkte die
+Studis haben.
+
+Sortierung:
+Es gibt für jedes eurer Tutorien einen Ordner, einen Hybrid-Ordner, falls
+zwei Leute in zwei eurer Übungsgruppen sind und somit nicht eindeutig einem
+Tutorium zugeordnet werden können.
+Dann gibt es noch Imported, da landen alle die, wo mindestens einer der importierten
+Studis mit gelistet ist. In Unknown landet dann alles was zu keinem anderen
+Ordner zugeordnet werden konnte (vielleicht kann man diese manuell zuordnen)
+
+Korrektur:
+In jedem Ordner befindet sich eine Feedback.txt. Diese wird normalerweise von
+meinem Mailskript nur den Leuten der Abgabegruppe gezeigt. Falls ihr das Mailsystem
+nicht benutzen wollt, so ist diese Datei immernoch von einem gewissem Nutzen.
+Aus ihr kann später extrahiert werden, wie viel Punkte eine Abgabe pro Aufgabe
+erzielt hat. Diese kann Informationen werden in einer Datei gesammelt und können
+direkt ins MÜSLI hochgeladen werden, sodass ihr die Punkte nicht von Hand eintragen
+müsst. (-> CreditDocumentation.py)
+
+PresentedMarker.py
+==================
+
+Kleines Skript mit dem ihr den Vorgerrechnet-Status eines Studis ändern könnt.
+Hierbei muss der Student 'Local' oder 'Exported' sein.
+Die Eingabe 0 heißt 0Pkte also nicht vorgerechnet. Jede andere Eingabe wird
+als 1Pkt also vorgerechnet interpretiert. So erspart man sich ein paar Klicks
+im Browser und kann das ganze elegant von der Konsole aus lösen.
+
+
+CreditDocumentCreator.py
+========================
+
+Kleines Syntax-Bsp.:
+
+Feedback.txt
+
+#Aufgabe 1
+Erster Kritikpunkt
+#[-1.5]
+Zweiter Kritikpunkt
+#Code>
+while True:
+    print('Dieser Code soll in die Mail!')
+#<
+#[-2]
+
+#SUM[-3.5]
+
+Eine Aufgabe geht von #Aufgabe bist #SUM. Alle #[] werden aufsummmiert und in SUM
+geschrieben. Diese Zahl wird dann mit den maximalen Punkten für diese Aufgabe aus
+'MaxCredits.txt' verrechnet. Falls ihr Mal Bonuspunkte vergeben wollt, dann macht
+einfach #[+1], Zahlen ohne Vorzeichen werden nämlich als negativ gezählt und nicht
+als postiv!
+Das #Code> #< Segment ist nur für die Mailrücksendung von Bedeutung (Einrückung
+und Zeilenumbruch bleibt in der HTML dann erhalten).
+Das Skript führt ihr in Working aus, dann werden alle Ordner nach Ordnern, die mit
+eurem Nachnamen in caps anfangen, gescannt und dort dann die jeweilig
+'Feedback.txt' interpretiert. Für jede 'Feedback.txt' wird eine 'credits.txt'
+angelegt. Diese Dateien sind primär für die Antwortmails
+Danach werden alle 'credits.txt' zu einer großen 'AllCredits_<SheetNr>.txt' zusammengefügt,
+aber nur aus den Ordnerneurer Tutorien, dem Hybrid und dem Unknown-Folder.
+Der Imported-Folder wird extra behandelt. Für jeden Tutor der importierten Leute
+wird eine extra Datei angelegt:
+'AllCredits_<SheetNr>_<MyFirstName>_<ExternalTutor>.txt'
+Die Idee ist, dass ihr diese Datei bequem an den Tutor senden könnt, von dem ihr
+die Leute korrigiert habt und er diese Datei mit dem Skript 'CreditUploader.py'
+direkt ins MÜSLI einspeißen kann.
+
+#Update 11.05.2017
+Da wir jetzt bei allen Übungsgruppen Punkte eintragen können wird es dafür in
+nährer Zukunft ein Update geben, bei der die letzte Option nur ausgeführt wird,
+wenn die Berechtigung fehlt.
+
+CreditUploader.py
+=================
+
+Wird entweder mit einem Argument gestartet, dass die Datei repräsentiert, die
+mit dem MÜSLI synchronisiert werden muss oder nimmt 'AllCredits.txt' im aktuellen
+Verzeichnis.
+Falls für einen Studenten die Punkte nicht hochgeladen werden konnten, so wird
+dies am Ende gelistet. Diese Fälle müssen dann manuell gehandhabt werden.
+Normalerweise wird dieses Skript von meinem Zettelrückgabeskript aufgerufen, kurz
+bevor die Feedback-Mails geschickt werden, sodass die Punkte direkt auch eingetragen
+sind. Das ist im Moment nicht der Fall, weil das ganze jetzt von zwei seperaten
+Skripts gemacht wird. Vielleicht integriere ich diese Funktion aber wieder in
+'ReturnSender.py'.
+
+!!! Ab hier wirds mau mit der Doku, weil diese Skripte am wenigsten Aufmerksamkeit
+bekommen haben.
+
+InfoSender.py
+=============
+
+Beta - no docu atm
+
+ReturnSender.py
+===============
+
+Dieses Skript ist dazu gedacht die Feedback-Dateien an jeden Studenten zu schicken.
+Das Skript wird in der directory ausgeführt, wo die GlobalFeedback.txt liegt.
+Es schickt das GlobalFeedback und die persönlichen Feedbacks in Form einer HTML-Mail
+an die Studenten zurück. Auf der Mail stehen noch die Punkte, die die Studenten
+erreicht haben.
+Die Namen der Studis werden auf ersten Vornamen, Nachnamen gekürzt.
+Der Aufruf von (keine Panik das ruft das Skript für euch auf):
+
+createReturnMailFromTemplate({'Name':'Christopher', 'Mail':'christopher.schuster@stud.uni-heidelberg.de'},
+                                    ['Ein Student', 'Vorname Zweitname Nachname'],
+                                    [7, 16, 16],
+                                    'return_template.html',
+                                    3,
+                                    {'Global':'GlobalFeedback.txt',
+                                     'Feedback':'Feedback.txt'
+                                     },
+                                    'HTML_mail01.html'
+                                    )
+
+erzeugt die Datei 'HTML_mail01.html', die ihr unter ExampleMails findet.
+Falls ein Studi mal nichts abgegeben hat, so wird speziell für ihn eine andere
+Mail erstellt. Ein Beispiel dazu stellt 'HTML_mail02.html' dar.
+
+Debug-Runs. In 'email_sender.py' l.121 müsste 'self.sendHTMLMail(me['Mail'], mail, subject, text)'
+stehen. Kommentiert diese Zeile aus und schaut, dass
+self.sendHTMLMail(me['Mail'], me['Mail'], subject, text) nicht auskommentiert ist.
+So schickt ihr die Mails nur an euch.
+Beachtet, dass der Default ist, dass ihr für jede Feedback-Mail die ihr sendet eine
+Mail an euch selbst sendet.
+Um versehentliches Senden zu unterbinden, könnt ihr in 'ReturnSender.py' l.96
+sender.allowed = False setzen, dies ist der Default.
+In näherer Zukunft kann man diese Optionen von der Konsole aus kontrollieren.
+
+================================================================================
