@@ -20,6 +20,7 @@ from gmdata_managment import getMetaDataPath
 from gmdata_managment import createMetaDataFile
 from gmdata_managment import getTutMetaInfo
 from gmdata_managment import createTutoriumList
+from gmdata_managment import createExternalStudentsList
 from gmdata_managment import createImportFile
 from gmdata_managment import createExportFile
 from gmdata_managment import createStudentsList
@@ -83,6 +84,15 @@ def createGlobalMetaData(root = getcwd()):
             else:
                 print('Skipped')
 
+
+    studentsListPath = pjoin(globalMdataPath, 'StudentList.txt')
+    #External
+    createExternalStudentsList(globalMdataPath)
+    
+    # Pre-Init
+    if not pexists(studentsListPath):
+        createStudentsList(globalMdataPath, ignore = True)
+
     #Imported/Exported
     importPath = pjoin(globalMdataPath, 'Imported.txt')
     exportPath = pjoin(globalMdataPath, 'Exported.txt')
@@ -93,8 +103,6 @@ def createGlobalMetaData(root = getcwd()):
 
     if onChange:
         print('Some files have been updated - Updating StudentsList')
-
-    studentsListPath = pjoin(globalMdataPath, 'StudentList.txt')
 
     if not pexists(studentsListPath) or onChange:
         createStudentsList(globalMdataPath)

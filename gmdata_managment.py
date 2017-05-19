@@ -650,7 +650,6 @@ def createExternalStudentsList (gMDataPath):
         mapi.moveToTutorialMainPage(subject)
         #print(mapi.curURL)
     
-        gMDataPath = '/home/christopher/Dokumente/Uni/SS17/ALDA-17/01_LTH_TestEnvir/GlobalMetaData'
         tutInfos = mapi.findExternalTutorialData(info[0]['Subject'], 
                         readAttribute(gMDataPath, 'MY_FNAME')
                         + ' ' 
@@ -755,12 +754,16 @@ def getExternalStudents (gMDataPath, etid = '*', extTut = '*'):
 # create StudentsList.txt
 #==============================================================================
 
-def createStudentsList(gMdataPath):
+def createStudentsList(gMdataPath, ignore = False):
     # Student (TID, Name, Mail, Subject, Status, Active, Status, ExtTut)
     print('createStudentsList(%s)' % gMdataPath)
     path = os.path.join(gMdataPath, 'StudentsList.txt')
-    studs = getExportedStudents(gMdataPath)
-    tmp = getImportedStudents(gMdataPath)
+    studs = []
+    tmp = []
+    
+    if not ignore:
+        studs = getExportedStudents(gMdataPath)
+        tmp = getImportedStudents(gMdataPath)
 
     for tid in getTutIDs(gMdataPath):
         tmp2 = []
