@@ -6,20 +6,10 @@ import sys
 from account_exceptions import LoginException
 from account_exceptions import LogoutException
 from account_exceptions import TutNotFoundException
+from util import getMaximumColumnSizes
 
 from student import cmpNameParts
-
-
-def getMaximumColumnSizes (students):
-    maxs = [0, 0, 0]
-    keys = ['Name', 'Mail', 'Subject']
-    
-    for student in students:
-        for i in range(0, 3):
-            if len(student[keys[i]]) > maxs[i]:
-                maxs[i] = len(student[keys[i]])
-                
-    return tuple(maxs)
+from student import compareNames
 
 def createCreditDictionary(creditFile):
     result = {}
@@ -76,7 +66,8 @@ class MuesliApi(object):
     def moveToExcercise (self, day, time, sheetNr):
         self.moveToTutorium(day, time)
         soup = BeautifulSoup(self.session.get(self.curURL).text, 'html.parser')
-        anchors = soup.findAll("a", href=re.compile("/exam/enter_points/.*"), text=re.compile("(.*ü|Ü)bung " + str(sheetNr)))
+        anchors = soup.findAll("a", href = re.compile("/exam/enter_points/.*"),
+                               text=re.compile("(.*ü|Ü)bung " + str(sheetNr)))
         self.curURL = self.baseURL + anchors[0].get("href")
 
     def moveToPresented (self, day, time):
@@ -97,6 +88,81 @@ class MuesliApi(object):
             result.append(self.baseURL + anchors[i].get("href"))
 
         return result
+    
+    #==========================================================================
+    # Advanced stuff for cross-over shit
+    #==========================================================================
+    
+    def moveToTutorialMainPage (self, name):
+        self.moveToStart()
+        r = self.session.post(self.curURL)
+        
+        soup = BeautifulSoup(r.text, 'html.parser')
+        anchors = soup.findAll("a", href=re.compile("/lecture/view/\d*"), text = name)
+        
+        self.curURL = self.baseURL + anchors[0].get("href")
+        
+    def findExternalTutorialData (self, subjectName, myName):
+        self.moveToTutorialMainPage(subjectName)
+        print(self.curURL)
+        r = self.session.post(self.curURL)
+        soup = BeautifulSoup(r.text, 'html.parser')
+        table = soup.find('table')
+        res = []
+        
+        days = {"Mo" : "Montag",
+                "Di" : "Dienstag",
+                "Mi" : "Mittwoch",
+                "Do" : "Donnerstag",
+                "Fr" : "Freitag",
+                "Sa" : "Samstag",
+                "So" : "Sonntag"
+                }
+        
+        keys = ['Day', 'Time', 'Place', 'Tutor', 'Link']
+        
+        for row in table.findAll('tr'):
+            tds = row.findAll('td')
+            if len(tds) == 0:
+                continue
+            
+            entries = tds[0].text.strip().split(' ')\
+                        + [tds[1].text.strip(), 
+                           tds[3].text.strip(), 
+                           self.baseURL + tds[5].find('a', href = True)['href']]
+    
+            entries[0] = days[entries[0]]
+            if not compareNames(entries[3], myName):
+                tutInfo = {}
+                for i in range(len(entries)):
+                    tutInfo[keys[i]] = entries[i]
+                res.append(tutInfo)
+        print(res)    
+        return res
+    
+    def moveToExternalTutorium (self, infos = [], tutor = '', day = '', time = '', tid = None):
+        for info in infos:
+            if tid != None and info['TID'] == tid:
+                self.curURL = info['Link']
+                break
+            
+            elif compareNames(info['ExtTut'], tutor) \
+                    and info['Day'] == day \
+                    and info['Time'] == time:        
+                self.curURL = info['Link']
+                break
+        
+    
+    def moveToExternalExcercise (self, subjectName, tutor, day, time, sheetNr):
+        self.moveToExternalTutorium(subjectName, tutor, day, time)
+        
+        soup = BeautifulSoup(self.session.get(self.curURL).text, 'html.parser')
+        anchors = soup.findAll("a", href = re.compile("/exam/enter_points/.*"),
+                               text=re.compile("(.*ü|Ü)bung " + str(sheetNr)))
+        
+        self.curURL = self.baseURL + anchors[0].get("href")
+            
+    #==========================================================================
 
     def extractTutorialInfo (self, tutoralLink):
         r = self.session.post(tutoralLink)
@@ -116,14 +182,14 @@ class MuesliApi(object):
                 words = header.text.split(' ')
                 for i in range(0, len(words)):
                     if "Vorlesung" == words[i]:
-                        result["Vorlesung"] = (words[i + 1] + ' ' + words[i + 2] + ' ' + words[i + 3]).replace('\n', '')
+                        result["Subject"] = (words[i + 1] + ' ' + words[i + 2] + ' ' + words[i + 3]).replace('\n', '')
 
                     elif "am" == words[i]:
-                        result["Tag"] = days[words[i + 1]]
-                        result["Zeit"] = words[i + 2]
+                        result["Day"] = days[words[i + 1]]
+                        result["Time"] = words[i + 2]
 
                     elif re.compile("\(.*,").match(words[i]):
-                        result["Ort"] = (words[i] + ' ' + words[i + 1] + ' ' + words[i + 2]).replace('\n','')[1:-1]
+                        result["Place"] = (words[i] + ' ' + words[i + 1] + ' ' + words[i + 2]).replace('\n','')[1:-1]
 
         result["Link"] = tutoralLink
 
@@ -142,7 +208,7 @@ class MuesliApi(object):
 
     def getTutorialInfoForDay (self, day, time):
         for info in self.extractAllTutorialsInfo(x['Link'] for x in self.getCurrentTutorials()):
-            if info["Tag"] == day and info["Zeit"] == time:
+            if info["Day"] == day and info["Time"] == time:
                 return info
         raise TutNotFoundException('The Tutorium %s %s was not found!' % (day, time))
 
@@ -207,22 +273,11 @@ class MuesliApi(object):
             for iStudentName, ids in idData.items():
                 #if 'Maria' in iStudentName and 'Kag' in iStudentName:
                     #print(cStudentName)
-                if cmpNameParts(cStudentName.split(' '), iStudentName.split(' ')):
+                if compareNames(cStudentName, iStudentName):
                     nameTuple = (iStudentName, cStudentName)
                     print('Matched %s from file with %s from MÜSLI' % (cStudentName, iStudentName))
                     break
-                else:
-                    # Okay lets check for some border cases
-                    replacer = {'ä':'ae', 'ü':'ue', 'ö':'oe', 'Ü':'Ue', 'Ö':'Oe', 'Ä':'Ae', 'ß':'ss'}
-                    orgKey = iStudentName
-                    for k, v in replacer.items():
-                        iStudentName = iStudentName.replace(k, v)
-                        
-                    #print(cStudentName, iStudentName)
-                    if cmpNameParts(cStudentName.split(' '), iStudentName.split(' ')):
-                        nameTuple = (orgKey, cStudentName)
-                        print('Matched %s from file with %s(as %s) from MÜSLI' % (cStudentName, orgKey, iStudentName))
-                        break
+                
                 
             if nameTuple != None:
                 ids = idData[nameTuple[0]]

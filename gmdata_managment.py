@@ -7,13 +7,18 @@ Created on Sat Apr 29 21:12:30 2017
 """
 
 import os
+from os.path import join as pjoin
 from re import compile as rcompile
 
 import template_holder as RTH
 
 from moodle import MoodleApi
 from muesli import MuesliApi
+from student import ConsoleStudentGetter
 from student import Student
+from student import StudentFilter
+from student import isNameIn
+from util import getMaximumColumnSizes
 
 """
     +GlobalMetaData
@@ -38,11 +43,11 @@ def createTutoriumId(identification, tutorium):
 
 def createTutoriumMData(i, tut):
     res = '| '
-    res += createTutoriumId(i, tut) + ' | '
-    res += tut['Tag'].rjust(12) + ' | '
-    res += tut['Zeit'] + ' | '
-    res += tut['Ort'].rjust(20) + ' | '
-    res += tut['Vorlesung'] + ' | '
+    res += tut['ID'] + ' | '
+    res += tut['Day'].rjust(12) + ' | '
+    res += tut['Time'] + ' | '
+    res += tut['Place'].rjust(20) + ' | '
+    res += tut['Subject'] + ' | '
     res += tut['Link'] + ' |'
 
     return res
@@ -90,6 +95,7 @@ def chooseFromList(li, cdiscr = 'elements', iSent = 'Choose index (type -1 to tr
     
     return li[index]
 
+'''
 def findStudentInList (name, studs):
     matchValue = {x:0 for x in studs}
 
@@ -125,6 +131,7 @@ def findStudentInList (name, studs):
     maxCount = matchValue[0][1]
 
     return [x[0] for x in matchValue if (x[1] == maxCount and x[1] > 0) or name == '']
+'''
 
 def createMetaDataFile(gMDPath):
     subj = input('Please insert E-Mail-Tag (like "ALDA-17"): ')
@@ -156,8 +163,8 @@ def createMetaDataFile(gMDPath):
         tutorials = muesli.getCurrentTutorials()
         for tut in tutorials:
             print('Do u want to synch data from this tutorial:',
-                  tut['Vorlesung'],
-                  '(', tut['Tag'], tut['Zeit'], ')',
+                  tut['Subject'],
+                  '(', tut['Day'], tut['Time'], ')',
                   end = '')
 
             if input('(Y|n)') == 'Y':
@@ -215,8 +222,9 @@ def createMetaDataFile(gMDPath):
         print('Save synched Tuts...', end = '')
         for i in range(len(synchedTuts)):
             tut = synchedTuts[i]
+            tut['ID'] = createTutoriumId(i, tut)
             result.append(tut)
-            print(createTutoriumId(i, tut), end='...')
+            print(tut['ID'], end='...')
             print(createTutoriumMData(i, tut), file = f)
         print('', file = f)
         print('[OK]')
@@ -373,8 +381,8 @@ def getImportedStudents(gMDataPath):
             if valid(line):
                 cols = [x.strip() for x in lastLine.split('|')]
                 res.append(Student(tid = cols[1], name = cols[2], 
-                                   mail = cols[3], status = 'Imported', 
-                                   extTut = cols[4]))
+                                   mail = cols[3], subject = cols[4], status = 'Imported', 
+                                   extTut = cols[7]))
             lastLine = line
 
     return res
@@ -417,93 +425,82 @@ def createRow(columns, maxs, divider = '|', divbuf = ' '):
 
     return res
 
-def getStudentsFromUser(filename, studRefList):
+def getStudentPairFromUser(filename, studRefList):
     students = []
+    fm = FolderManager()
+    divider = '~' * 35
 
-    while input('Want to add a student to %s? (Y|n)' % filename) == 'Y':
-        vals = []
-        student = None
+    while input('Want to add a student to %s? (Y|n)' % filename) == 'Y': 
+        csg  = ConsoleStudentGetter(fm, includeExt = False)
+        csg2 = ConsoleStudentGetter(fm, includeExt = True)
         
-        while True:
-            nm = input('Insert name of partner which is in ur tutorial: ')
-            student = findStudentInList(nm, studRefList)
+        print(divider)
+        print('Insert Pair of students:\n\
+              \t+ Name of the partner in ur tutorial \n\
+              \t  (press Enter if there is no partner in ur tutorial) \n\
+              \t+ Name of the student u want to import ')
+              
+        print('\nName of the partner in ur tutorial:')
+        mStudent = csg.readStudent(allowEmpty = True)
+        print(mStudent)
+        print('Name of the imported student:')
+        eStudent = csg2.readStudent()
+        print(eStudent)
+        eStudent['TID'] = mStudent['TID'] if mStudent != None else 'Tut_99'
+        print(eStudent)
+        print('Pair << %s, %s >>' %  ('NONE' 
+                                          if mStudent == None 
+                                          else mStudent['Name'],
+                                      eStudent['Name']))
+        print(divider)
         
-            if len(student) == 1:
-                student = student[0]
-                
-            elif len(student) > 1:
-                student = chooseFromList(student,
-                                         cdiscr='students', 
-                                         iSent='Choose student by index: ',
-                                         key = 'Name')
-                
-            else:
-                print("Didn't find name. Please try again.")
-                continue
-
-            
-            vals.append(student['TID'])
-            vals.append(input('Insert name of the imported student: '))  
-            vals.append(input('Insert e-Mail of the imported student: '))
-            vals.append(input('Insert name of tutor of the imported student: '))
-
-            students.append(tuple(vals))
-            print()
-            break
-        
+        students.append(eStudent)
+    print(students)
     return students
 
 def nonEmptyInput(msg, value = ''):
     userInput = input(msg)
     return userInput if len(userInput) == 0 else value
 
-def modifyImportedStudents(students):
+def removeImportedStudents(students):
     res = [x for x in students]
     
     while True:
         if len(res) == 0:
             print('There are no imported students!')
-            return []
+            return res
             
         for index, student in enumerate(students):
             print('%s %s' % (str(index).zfill(2), student['Name']))
         
-        index = int(input('Type the index of the student u want to modify. '
-                          'Type -1 if u completed modification.\n'))
+        index = int(input('Type the index of the student u want to remove.'))
         
         if index < 0:
             break
         student = students[index]
         
         # remove student from list
-        if input('Want to remove this student from the list of imported students? (Y|n)') == 'Y':
-            res.remove(student)
+        if input('Do u want to remove %s from the list of imported \
+                 students? (Y|n)' % student['Name']) == 'Y':
+            res = res[0:index] + res[index + 1:]
             print()
             continue
-            
-        else:
-            # otherwise modify
-            print('If u want to skip one of the following steps,'
-                  'just press enter to continue.')
-            tid = student['TID']
-            name = nonEmptyInput('Enter name (%s): ' % student['Name'], student['Name'])
-            mail = nonEmptyInput('Enter mail (%s): ' % student['Mail'], student['Mail']) 
-            extTut = nonEmptyInput('Enter extTutor (%s): ' % student['ExtTut'], student['ExtTut']) 
-            res.remove(student)
-            res.append(Student(tid, name, mail, extTut = extTut))
-        print()
     
     return res
 
 
 def writeImportFile(path, students):
-    columnNames = ['TID', 'NAME', 'MAIL', 'FROM-TUTOR']
+    print('writeImportFile (%s, %s)' % (path, students))
+    columnNames = Student.getKeys()
     maxs = [len(x) for x in columnNames]
     
     for student in students:
-            for i in range(len(maxs)):
-                if maxs[i] < len(student[i]):
-                    maxs[i] = len(student[i])
+        keys = Student.getKeys()
+        print(student)
+        for i in range(len(maxs)):
+            print(keys[i], student[i], student[keys[i]])    
+            if maxs[i] < len(student[i]):
+                maxs[i] = len(student[i])
                     
     print('Create %s...' % os.path.basename(path), end = '')
     with open(path, 'w') as imp:
@@ -522,7 +519,8 @@ def writeImportFile(path, students):
             
     print('[OK]')
                     
-
+# Todo change to working path and make second param 'mode' which should replace
+# the userinput in this function => more modular
 def createImportFile(path):
     filename = os.path.basename(path)
     tids = getTutIDs(os.path.dirname(path))
@@ -538,7 +536,7 @@ def createImportFile(path):
                 '''Do u want to modify \'%s\'? Type on of following options:
                 o|O for OVERRIDE
                 a|A for APPEND
-                m|M for MODIFY (REMOVE)
+                r|R for REMOVE
                 (.*) for NO CHANGES\n\n''' % filename).lower()
             
         if userInput == 'a':
@@ -548,28 +546,28 @@ def createImportFile(path):
             for index, value in enumerate(students):
                 print(str(index).zfill(2), value[1])
             
-            students += getStudentsFromUser(filename, studRefList)
+            students += getStudentPairFromUser(filename, studRefList)
             
             print(students)
-            
-            writeImportFile(path, students)
         
         elif userInput == 'o':
-            students = getStudentsFromUser(filename, studRefList)
-            writeImportFile(path, students)
+            students = getStudentPairFromUser(filename, studRefList)
             
-        elif userInput == 'm':
-            students = modifyImportedStudents(
+        elif userInput == 'r':
+            students = removeImportedStudents(
                            getImportedStudents(
                                    os.path.dirname(path)))
         else:
             print('Nothing to change - skip')
             return False
+        
+        writeImportFile(path, students)
             
     else:
         # initial creation
+        print("No '%s' found - start creating... " % filename)
         
-        students = getStudentsFromUser(filename, studRefList)
+        students = getStudentPairFromUser(filename, studRefList)
         writeImportFile(path, students)
 
 
@@ -589,6 +587,7 @@ def createExportFile(path):
     studs = []
     for tid in tids:
         studs += getStudentFromMUESLI(os.path.dirname(path), tid)
+    filt = StudentFilter(studs)
 
     print('Create %s' % filename)
     with open(path, 'w') as imp:
@@ -603,7 +602,7 @@ def createExportFile(path):
 
             while True:
                 nm = input('Insert name of student which u want to export: ')
-                student = findStudentInList(nm, studs)
+                student = filt.findStudentInList(nm)
                 if len(student) == 1:
                     student = student[0]
                     break
@@ -638,6 +637,118 @@ def createExportFile(path):
             p(divider)
 
     return True
+
+#==============================================================================
+# create ExternalStudents.txt
+#==============================================================================
+
+def createExternalStudentsList (gMDataPath):
+    with MuesliApi(acc = loadUserFrom(gMDataPath, 'MÜSLI')) as mapi:
+        info = mapi.getCurrentTutorials()
+        #print(info)
+        subject = info[0]['Subject']
+        mapi.moveToTutorialMainPage(subject)
+        #print(mapi.curURL)
+    
+        gMDataPath = '/home/christopher/Dokumente/Uni/SS17/ALDA-17/01_LTH_TestEnvir/GlobalMetaData'
+        tutInfos = mapi.findExternalTutorialData(info[0]['Subject'], 
+                        readAttribute(gMDataPath, 'MY_FNAME')
+                        + ' ' 
+                        + readAttribute(gMDataPath, 'MY_LNAME'))
+    
+        keys = ['TID', 'Day', 'Time', 'Place', 'Subject', 'Link', 'Tutor']
+        extTutRows = []
+    
+        for index, tutInfo in enumerate(tutInfos):
+            #print(index)
+            tid = 'Ext_%s' % str(index).zfill(2)
+            tutInfo['TID'] = tid
+            tutInfo['Subject'] = subject
+            extTutRows.append(tutInfo)
+            
+            maxs = getMaximumColumnSizes(extTutRows, keys)
+    
+            tutStud = {x['Tutor']:[] for x in extTutRows}
+    
+            with open(pjoin(gMDataPath, 'ExternalTutorials.txt'), 'w') as fd:
+                studList = []
+                for tutInfo in extTutRows:
+                    print('|', tutInfo['TID'].rjust(maxs[0]), '|', tutInfo['Day'].rjust(maxs[1]),
+                                     '|', tutInfo['Time'].rjust(maxs[2]), '|', tutInfo['Place'].rjust(maxs[3]),
+                                     '|', subject.rjust(maxs[4]), '|', tutInfo['Link'].rjust(maxs[5]), '|', 
+                                     tutInfo['Tutor'].rjust(maxs[6]), '|', 
+                                     file = fd)
+        
+            
+                    studentsData = mapi.getStudentsMetaData(tutInfo['Link'])
+        
+                    for studentData in studentsData:
+                        student = Student(tutInfo['TID'], studentData['Name'], studentData['Mail'])
+                        student['ExtTut'] = tutInfo['Tutor']
+                        student['Status'] = 'External'
+                        student['Subject'] = studentData['Subject']
+                
+                        studList.append(student)
+                        print(student)
+                
+                    tutStud[tutInfo['Tutor']].append(studList)
+                    studList = []
+            
+        with open(pjoin(gMDataPath, 'ExternalStudentsList.txt'), 'w') as fd:
+            listEntries = []
+        
+            for tutor, groups in tutStud.items():
+                print(tutor, len(groups), [len(group) for group in groups])
+                for group in groups:
+                    print('Groupsize: %s' % str(len(group)))
+                    for student in group:
+                        listEntries.append(student)
+                    
+            maxs = getMaximumColumnSizes(listEntries, Student.getKeys())
+        
+            for student in sorted(listEntries, key = lambda x: x['TID']):
+                print('| %s |' % ('|'.join(
+                        [' %s ' % str(student[key]).rjust(maxs[index]) 
+                        for index, key in enumerate(student.getKeys())])),
+                    file = fd)
+    
+def getETutMetaInfo (gMDataPath):
+    result = []
+    columnKeys = ['ID', 'Day', 'Time', 'Place', 'Subject', 'Link', 'ExtTut']
+    
+    with open(pjoin(gMDataPath, 'ExternalTutorials.txt'), 'r') as fd:
+        for line in fd:
+            #print(line[1:-2].split('|'))
+            result.append({columnKeys[index]:x.strip() 
+                            for index, x in enumerate(line[1:-2].split('|'))})
+            
+    return result
+    
+    
+def getETutIDs (gMDataPath):
+    return [x['ID'] for x in getETutMetaInfo(gMDataPath)]
+
+def getETutors (gMDataPath):
+    return [x['ExtTut'] for x in getETutMetaInfo(gMDataPath)]
+            
+    
+def getExternalStudents (gMDataPath, etid = '*', extTut = '*'):
+    splitInParts = lambda x: [p for p in x.split(';') if p]
+    
+    rows = []
+    keys = Student.getKeys()
+    
+    with open(pjoin(gMDataPath, 'ExternalStudentsList.txt'), 'r') as fd:
+        for row in fd:
+            rows.append({keys[index]:col.strip() for index, col in enumerate(row[1:-2].split('|'))})
+            
+    for i in range(len(rows)):
+        rows[i] = Student.fromDict(rows[i])
+    
+    etids = splitInParts(etid) if etid != '*' else getETutIDs(gMDataPath)
+    extTuts = splitInParts(extTut) if extTut != '*' else getETutors(gMDataPath)
+    
+    return [x for x in rows if x['TID'] in etids and isNameIn(x['ExtTut'], extTuts)]
 
 
 #==============================================================================
@@ -786,25 +897,81 @@ class FolderManager(object):
     def getTLastName (self):
         return readAttribute(self.__gMDataPath, 'MY_LNAME')
 
+    #--------------------------------------------------------------------------
     def getTIDs(self):
         return getTutIDs(self.__gMDataPath)
-
+    
+    def getETIDs (self):
+        return getETutIDs(self.__gMDataPath)
+    #--------------------------------------------------------------------------
+    
+    #--------------------------------------------------------------------------
     def getTutMetaInfo (self):
         return getTutMetaInfo(self.__gMDataPath)
+    
+    def getETutMetaInfo (self):
+        return getETutMetaInfo(self.__gMDataPath)
+    
+    def getInfoForStudent (self, student):
+        tid = student['TID']
+        
+        infos = None
+        if student['Status'] == 'External':
+            infos = self.getETutMetaInfo()
+        
+        else:
+            infos = self.getTutMetaInfo()
+            
+        for info in infos:
+            if info['ID'] == tid:
+                return info
+                
+        return None
+            
+    #--------------------------------------------------------------------------
 
+    #--------------------------------------------------------------------------
     def getDateFor (self, tid):
-        info = [x for x in self.getTutMetaInfo() if x['ID'] == tid][0]
-        return (info['Day'], info['Time'])
+        print('getDateFor (%s)' % tid)
+        if 'Ext' in tid:
+            einfo = [x for x in self.getETutMetaInfo() if x['ID'] == tid][0]
+            return (einfo['Day'], einfo['Time'])
+        else:    
+            info = [x for x in self.getTutMetaInfo() if x['ID'] == tid][0]
+            return (info['Day'], info['Time'])
+        
+    #--------------------------------------------------------------------------
 
-    def getStudents(self, tid, status = 'Local'):
+    #--------------------------------------------------------------------------
+    def getStudents (self, tid, status = 'Local'):
         return getStudents(self.__gMDataPath, tid, status)
+    
+    def getEStudents (self, tutor, etid = '*'):
+        return getExternalStudents(self.__gMDataPath, etid, tutor)
+    #--------------------------------------------------------------------------
 
+    #--------------------------------------------------------------------------
     def getAllStudents(self, status = 'Local'):
-        return getStudents(self.__gMDataPath, '*', status)
-
+        res = []
+        print('#1', len(res))
+        if 'External' in status or status == '*':
+            res += getExternalStudents(self.__gMDataPath)
+            print('#2', len(res))
+            
+        print('#3', len(res + getStudents(self.__gMDataPath, '*', status)))
+        return res + getStudents(self.__gMDataPath, '*', status)
+    #--------------------------------------------------------------------------
+    
+    #--------------------------------------------------------------------------
     def findStudentByName(self, name, status = 'Local;Exported'):
-        studs = self.getStudents(tid = ';'.join(self.getTIDs()), status = status)
-        return findStudentInList(name, studs)
-
+        studs = self.getStudents(tid = '*', status = status)
+        
+        if 'External' in status or status == '*':
+            studs += self.getEStudents('*')
+        
+        #return findStudentInList(name, studs)
+        return StudentFilter(studs).findStudentByName(name)
+    
+    #--------------------------------------------------------------------------
 
 #==============================================================================
