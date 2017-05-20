@@ -79,7 +79,7 @@ def createAttribute(gMDFile, key, value, secure = True):
     print(key, '=', modify(value) if secure else value, file = gMDFile)
 
 
-def chooseFromList(li, cdiscr = 'elements', iSent = 'Choose index (type -1 to try again): ', key = None):
+def chooseFromList(li, cdiscr = 'elements', iSent = 'Choose index (type -1 to try again): ', key = None, single = False):
     print('Found %i %s:' % (len(li), cdiscr))
     print(iSent)
     
@@ -89,78 +89,36 @@ def chooseFromList(li, cdiscr = 'elements', iSent = 'Choose index (type -1 to tr
     while True:
         index = int(input(iSent))
         if index == -1:
-            continue
+            if single:
+                return None
+            else:
+                continue
+        
         print('')
         break
     
     return li[index]
 
-'''
-def findStudentInList (name, studs):
-    matchValue = {x:0 for x in studs}
-
-    perfectMatch = False
-
-    for student in studs:
-        for namePart in name.split(' '):
-            if namePart in student['Name']:
-                matchValue[student] += 1
-                perfectMatch = True
-
-    if not perfectMatch:
-        for student in studs:
-            for namePart in name.split(' '):
-               r, w = 0,0
-               for i in range(len(namePart)):
-                   if namePart[:-i] in student['Name']:
-                       r += 1
-                   else:
-                       w += 1
-
-                   if namePart[len(namePart) - i:] in student['Name']:
-                       r += 1
-                   else:
-                       w += 1
-
-               if r/w > 1:
-                   matchValue[student] += 1
-
-
-    matchValue = sorted([(k, v) for k,v in matchValue.items()],
-                        key = lambda x: -x[1])
-    maxCount = matchValue[0][1]
-
-    return [x[0] for x in matchValue if (x[1] == maxCount and x[1] > 0) or name == '']
-'''
-
-def createMetaDataFile(gMDPath):
-    subj = input('Please insert E-Mail-Tag (like "ALDA-17"): ')
-
-    muesli_u = input('Please insert MÜSLI-Username: ')
-    muesli_p = input('Please insert MÜSLI-Password: ')
-
-    moodle_u = input('Please insert Moodle-Username: ')
-    moodle_p = input('Please insert Moodle-Password: ')
-
-    mail_u   = input('Please insert Mail-Username: ')
-    mail_p   = input('Please insert Mail-Password: ')
-
-    my_fname = input('Please insert ur First Name: ')
-    my_lname = input('Please insert ur Last Name: ')
-    my_mail = input('Please insert ur E-Mailaddress: ')
-
-    keys = ('MÜSLI_USER', 'MÜSLI_PASSW', 'MOODLE_USER', 'MOODLE_PASSW', 'EMAIL_USER', 'EMAIL_PASSW')
-    logins = (muesli_u, muesli_p, moodle_u, moodle_p, mail_u, mail_p)
-
-    personalKeys = ('MY_FNAME', 'MY_LNAME', 'MY_MAIL')
-    personalData = (my_fname, my_lname, my_mail)
-
+def getAccountFromUser (accName = 'MÜSLI'):
+    return (input('Please insert %s-Username: ' % accName), 
+            input('Please insert %s-Password: ' % accName))
+    
+def getLoginDataFromUser (platforms = ['Müsli', 'Moodle', 'Mail']):
+    loginData = {}
+    
+    for platform in platforms:
+        acc, passw = getAccountFromUser(accName = platform)
+        loginData['%s_USER' % platform.upper()] = acc
+        loginData['%s_PASSW' % platform.upper()] = passw
+        
+    return loginData
+            
+def getSynchedTutsFromUser (muesliName, muesliPassw):
     synchedTuts = []
-
-    print('Configure MÜSLI data')
-    print('-' * 30)
-    with MuesliApi(acc = (muesli_u, muesli_p)) as muesli:
+    
+    with MuesliApi(acc = (muesliName, muesliPassw)) as muesli:
         tutorials = muesli.getCurrentTutorials()
+        
         for tut in tutorials:
             print('Do u want to synch data from this tutorial:',
                   tut['Subject'],
@@ -172,44 +130,66 @@ def createMetaDataFile(gMDPath):
                 synchedTuts.append(tut)
             else:
                 print('Skipped')
-    print('')
+    
+    return synchedTuts
 
-    #==========================================================================
-    print('Configure Moodle data')
-    print('-' * 30)
-
-    moodleKeys = ('FACILITY', 'SUB_FACILITY', 'COURSE', 'COURSE_LINK')
-    moodleFac = None
-    moodleSubFac = None
-    moodleCourse = None
+def getMoodleDataFromUser (moodleName, moodlePassw):
+    seq = 'Choose where ur tutorial is by index \
+            (Type -1 to return to previous step): '
+    
+    data = [None] * 3
+    listData = [lambda d1, d2 : [x['Name'] for x in moodle.listFacilities()],
+                lambda d1, d2 : [x['Name'] for x in moodle.listSubFacilitiesOf(d1)],
+                lambda d1, d2 : moodle.listCoursesOf(d1, d2)
+                ]
+    cdiscrs = ['facilities', 'subfacilities', 'subfacilities']
+    cFL = lambda lvl, d1, d2: chooseFromList(listData[lvl](d1, d2),
+                                   cdiscr = cdiscrs[lvl], iSent = seq, single = True)
+    
     courseLink = None
+    lvl = 0
 
-    with MoodleApi(acc = (moodle_u, moodle_p)) as moodle:
-        seq = 'Choose where ur tutorial is by index: '
-        moodleFac = chooseFromList([x['Name'] for x in moodle.listFacilities()],
-                                   cdiscr = 'facilities',
-                                   iSent = seq)
-        moodleSubFac = chooseFromList([x['Name'] for x in moodle.listSubFacilitiesOf(moodleFac)],
-                                      cdiscr = 'subfacilities',
-                                      iSent = seq)
-        moodleCourse = chooseFromList(moodle.listCoursesOf(moodleFac, moodleSubFac),
-                                      cdiscr = 'subfacilities',
-                                      iSent = seq)
-        moodle.moveToCourse (courseData = (moodleFac, moodleSubFac, moodleCourse))
+    with MoodleApi(acc = (moodleName, moodlePassw)) as moodle:
+        while True:
+            val = ''
+            if lvl > 0 and lvl < 3:
+                val = cFL(lvl, data[0], data[1])
+            else:
+                break
+                
+            if val == None:
+                if lvl > 0:
+                    lvl -= 1
+            else:
+                data[lvl] = val
+                lvl += 1
+                
+        moodle.moveToCourse (courseData = (data[0], data[1], data[2]))
         courseLink = moodle.curURL
         print('Your tutorial is located here: %s' % courseLink)
+        
     print('')
-    moodleData = (moodleFac, moodleSubFac, moodleCourse, courseLink)
+    return tuple(data.append(courseLink))
 
+def getMoodleDataFromFile (gMDataPath):
+    return (readAttribute(gMDataPath, 'FACILITY'), 
+            readAttribute(gMDataPath, 'SUB_FACILITY'), 
+            readAttribute(gMDataPath, 'COURSE'), 
+            readAttribute(gMDataPath, 'COURSE_LINK'))
+    
+def writeToMetaData (gMDPath, subj, loginKData, personalKData, synchedTuts, moodleKData):
+    keys, loginData = loginKData
+    personalKeys, personalData = personalKData
+    moodleKeys, moodleData = moodleKData
     result = []
-
+    
     with open(os.path.join(gMDPath, 'MetaData.txt'), 'w') as f:
         print('THIS_SUBJ', '=', subj, file = f)
 
         print('Save login data...', end = '')
         for i in range(0, len(keys), 2):
-            createAttribute(f, keys[i], logins[i])
-            createAttribute(f, keys[i + 1], logins[i + 1])
+            createAttribute(f, keys[i], loginData[keys[i]])
+            createAttribute(f, keys[i + 1], loginData[keys[i + 1]])
             print('', file = f)
         print('[OK]')
 
@@ -239,8 +219,137 @@ def createMetaDataFile(gMDPath):
         print('MAIL_ITEMPLATE', '=', createInfoTemplate(gMDPath), file = f)
         print('MAIL_RTEMPLATE', '=', createReturnTemplate(gMDPath), file = f)
         print('[OK]')
+        
+    return result
+
+def createMetaDataFile(gMDPath):
+    subj = input('Please insert E-Mail-Tag (like "ALDA-17"): ')
+    
+    #==========================================================================
+
+    loginData = getLoginDataFromUser()
+    
+    #==========================================================================
+
+    my_fname = input('Please insert ur First Name: ')
+    my_lname = input('Please insert ur Last Name: ')
+    my_mail = input('Please insert ur E-Mailaddress: ')
+    
+    personalData = (my_fname, my_lname, my_mail)
+    
+    #==========================================================================
+
+    print('Configure MÜSLI data')
+    print('-' * 30)
+    
+    synchedTuts = getSynchedTutsFromUser(loginData['MÜSLI_USER'], 
+                                         loginData['MÜSLI_PASSW'])
+    
+    print('')
+
+    #==========================================================================
+    print('Configure Moodle data')
+    print('-' * 30)
+
+    moodleData = getMoodleDataFromUser(loginData['MOODLE_USER'], 
+                                       loginData['MOODLE_PASSW'])
+    print('')
+
+    #==========================================================================
+
+    keys = ('MÜSLI_USER', 'MÜSLI_PASSW', 'MOODLE_USER', 'MOODLE_PASSW', 'EMAIL_USER', 'EMAIL_PASSW')
+    personalKeys = ('MY_FNAME', 'MY_LNAME', 'MY_MAIL')
+    moodleKeys = ('FACILITY', 'SUB_FACILITY', 'COURSE', 'COURSE_LINK')
+
+    result = writeToMetaData (gMDPath, subj, 
+                              (keys, loginData), 
+                              (personalKeys, personalData), 
+                              synchedTuts, 
+                              (moodleKeys, moodleData))
 
     return result
+
+def modifyMetaData (gMDataPath):
+    keys = ('MÜSLI_USER', 'MÜSLI_PASSW', 'MOODLE_USER', 'MOODLE_PASSW', 'EMAIL_USER', 'EMAIL_PASSW')
+    personalKeys = ('MY_FNAME', 'MY_LNAME', 'MY_MAIL')
+    moodleKeys = ('FACILITY', 'SUB_FACILITY', 'COURSE', 'COURSE_LINK')
+    
+    # very slow cuz every readAttribute opens and cloeses fd on its own
+    subj = readAttribute(gMDataPath, 'THIS_SUBJ')
+    loginData = {x:readAttribute(gMDataPath, x) for x in keys}
+    personalData = [readAttribute(gMDataPath, x) for x in personalKeys]
+    synchedTuts = getTutMetaInfo(gMDataPath)
+    moodleData = [readAttribute(gMDataPath, x) for x in moodleKeys]
+    
+    while True:
+        print()
+        print('=' * 30)
+        print("""MetaData - Content:
+            00 Mail-Tag
+            01 MÜSLI-Account
+            02 Moodle-Account
+            03 Mail-Account
+            04 Personal data
+            05 Tutorial Infos
+            06 Moodle Data
+        """)
+        
+        inp = input("What do u want to modify \n(Type index or A for 'Apply Changes': ")
+                
+        if inp == 'A':
+            return writeToMetaData (gMDataPath, subj, 
+                              (keys, loginData), 
+                              (personalKeys, personalData), 
+                              synchedTuts, 
+                              (moodleKeys, moodleData))
+          
+        inp = int(inp)
+            
+        if inp == 0:
+            subj = input('Please insert E-Mail-Tag (like "ALDA-17"): ')
+            
+        elif inp == 1:
+            loginData = {**loginData, 
+                         **getLoginDataFromUser(platforms = ['Müsli'])}
+    
+        elif inp == 2:
+            loginData = {**loginData, 
+                         **getLoginDataFromUser(platforms = ['Moodle'])}
+    
+        elif inp == 3:
+            loginData = {**loginData, 
+                         **getLoginDataFromUser(platforms = ['Mail'])}
+    
+        elif inp == 4:
+            my_fname = input('Please insert ur First Name: ')
+            my_lname = input('Please insert ur Last Name: ')
+            my_mail = input('Please insert ur E-Mailaddress: ')
+            
+            personalData = (my_fname, my_lname, my_mail)
+            
+        elif inp == 5:
+            print('Configure MÜSLI data')
+            print('-' * 30)
+    
+            synchedTuts = getSynchedTutsFromUser(loginData['MÜSLI_USER'], 
+                                         loginData['MÜSLI_PASSW'])
+    
+            print('')
+            
+        elif inp == 6:
+            print('Configure Moodle data')
+            print('-' * 30)
+
+            moodleData = getMoodleDataFromUser(loginData['MOODLE_USER'], 
+                                       loginData['MOODLE_PASSW'])
+            print('')
+            
+        else:
+            print("Input '%s' is not supported!" % inp)
+        
+                
+    
+    
 
 #==============================================================================
 # load from MetaData.txt
@@ -255,7 +364,7 @@ def readAttribute(gMDataPath, key):
         for line in fd:
             if line.startswith(key):
                 val = line.split('=')[1].strip()
-                if rcompile('>(\d+|)*'):
+                if rcompile('>(\d+|)*').match(val):
                     return modify(val, reverse = True)
                 else:
                     return val

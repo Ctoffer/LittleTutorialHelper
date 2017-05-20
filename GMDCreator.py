@@ -17,7 +17,7 @@ from os.path import basename as pbasename
 from pip import main as pip_main
 
 from gmdata_managment import getMetaDataPath
-from gmdata_managment import createMetaDataFile
+from gmdata_managment import createMetaDataFile, modifyMetaData
 from gmdata_managment import getTutMetaInfo
 from gmdata_managment import createTutoriumList
 from gmdata_managment import createExternalStudentsList
@@ -55,9 +55,18 @@ def createGlobalMetaData(root = getcwd()):
     #--------------------------------------------------------------------------
     metaDataFile = getMetaDataPath(globalMdataPath)
     if pexists(metaDataFile):
-        if input('Do u want to override MetaData? (Y|n)') == 'Y':
+        inp = input('MetaData are already existent: \n\
+                     o|O Override \n\
+                     m|M Modify   \n\
+                     .*  Skip\n\nChoose option: ')
+        if  inp.lower() == 'o':
             tutLinks = createMetaDataFile(globalMdataPath)
             onChange = True
+            
+        elif inp.lower() == 'm':
+            tutLinks = modifyMetaData(globalMdataPath)
+            onChange = True
+            
         else:
             print('MetaData.txt will not be changed.')
 
@@ -94,7 +103,9 @@ def createGlobalMetaData(root = getcwd()):
         createStudentsList(globalMdataPath, ignore = True)
 
     #Imported/Exported
+    print('=' * 30)
     importPath = pjoin(globalMdataPath, 'Imported.txt')
+    print('=' * 30)
     exportPath = pjoin(globalMdataPath, 'Exported.txt')
 
     cif = createImportFile(importPath)
