@@ -175,7 +175,9 @@ class MuesliApi(object):
                 "Di" : "Dienstag",
                 "Mi" : "Mittwoch",
                 "Do" : "Donnerstag",
-                "Fr" : "Freitag"}
+                "Fr" : "Freitag",
+                "Sa" : "Samstag",
+                "So" : "Sonntag"}
 
         for header in headers:
             if pattern.match(header.text):
