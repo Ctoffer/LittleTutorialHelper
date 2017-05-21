@@ -97,8 +97,9 @@ def createCreditsText(subpath):
 
 def writeNameCreditLists(path, fname, vals):
     maxCredits = getMaxCredits(path)
+    # sort after first name
     vals = sorted(vals, key = lambda x : x[0].split(' ')[0])
-    maxs = [0 for x in range(len(vals[1]) + 2)]
+    maxs = [0 for x in range(len(vals[0][1]) + 1)]
     
     for val in vals:
         for i in range(len(maxs)):

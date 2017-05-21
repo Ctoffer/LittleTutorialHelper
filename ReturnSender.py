@@ -13,6 +13,8 @@ from os.path import basename as pbasename
 from os.path import dirname as pdirname
 from os.path import split as osplit
 
+from sys import argv
+
 from gmdata_managment import FolderManager
 from html_mail_modifier import createReturnMailFromTemplate
 from html_mail_modifier import createDefaultReturnMailFromTemplate
@@ -80,22 +82,33 @@ def prepareMails(studs, me, wPath, template):
                             break
                         
     for s in studs:
-        result[s['Mail']] = createDefaultReturnMailFromTemplate(me, s['Name'], template, sheetNr, gFeedback, resultFilename = None, retPath = True)
+        result[s['Mail']] = createDefaultReturnMailFromTemplate(me, s['Name'], 
+              template, sheetNr, gFeedback, 
+              resultFilename = None, retPath = True)
     
     return result
                     
-def sendFeedbackMails(wpath):
+def sendFeedbackMails(wpath, sendable = False):
     fm = FolderManager(wpath)
     #print(os.path.basename(os.path.dirname(wpath)))
     sheetNr = pbasename(pdirname(wpath)).split('_')[1]
     
-    studs = fm.getAllStudents()
+    studs = fm.getAllStudents(status = 'Local;Imported')
     mailHtmlDict = prepareMails(studs, fm.getMyEmailData(), wpath, fm.getReturnTemplatePath())
+
+    if sendable:
+        quest = 'Do u rly want to send Feedbackmails to ur students? (Y|n)'
+        sendable = input(quest) == 'Y'
+    else:
+        print('Mails prepared. To send it after prepareing use -S as console parameter')
     
-    with Sender(acc = fm.getMailAcc()) as sender:
-        sender.allowed = False
-        sender.sendFeedbackMails(fm.getSubject(), sheetNr, mailHtmlDict)
+    if sendable:
+        with Sender(acc = fm.getMailAcc()) as sender:
+            sender.allowed = sendable
+            sender.sendFeedbackMails(fm.getSubject(), sheetNr, mailHtmlDict)
     
 
 if __name__ == '__main__':
-    sendFeedbackMails(getcwd())
+    print('Starting Feedback-Sender in %s' % getcwd())
+    print()
+    sendFeedbackMails(getcwd(), '-S' in argv)

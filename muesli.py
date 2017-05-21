@@ -63,8 +63,11 @@ class MuesliApi(object):
     def moveToTutorium (self, day, time):
         self.curURL = self.getTutorialInfoForDay(day, time)['Link']
         
-    def moveToExcercise (self, day, time, sheetNr):
-        self.moveToTutorium(day, time)
+    def moveToExcercise (self, day, time, sheetNr, link = None):
+        if link == None:
+            self.moveToTutorium(day, time)
+        else:
+            self.curURL = link
         soup = BeautifulSoup(self.session.get(self.curURL).text, 'html.parser')
         anchors = soup.findAll("a", href = re.compile("/exam/enter_points/.*"),
                                text=re.compile("(.*ü|Ü)bung " + str(sheetNr)))
@@ -249,7 +252,7 @@ class MuesliApi(object):
             
     def uploadCredits (self, info, creditFile, sheetNr):
         müsliStudents = self.getStudentsMetaData(info['Link'])
-        self.moveToExcercise(info['Day'], info['Time'], sheetNr)
+        self.moveToExcercise(info['Day'], info['Time'], sheetNr, link = info['Link'])
         
         payload = {"submit":"1"}
         
@@ -290,8 +293,8 @@ class MuesliApi(object):
                 result[nameTuple[0]] = cData[nameTuple[1]]
                 del idData[nameTuple[0]]
         
-        for k,v in payload.items():
-            print(k, v)
+        #for k,v in payload.items():
+        #   print(k, v)
             
         
         #print('\n[ WARNING ] Uploading not implemented!\n')

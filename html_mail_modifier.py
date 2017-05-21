@@ -245,15 +245,3 @@ def createDefaultReturnMailFromTemplate(me, studentName, template, sheetNr, gFee
         if retPath:
             return resultFilename
         return txt
-
-
-createReturnMailFromTemplate({'Name':'Christopher', 'Mail':'christopher.schuster@stud.uni-heidelberg.de'}, 
-                                    ['Ein Student', 'Vorname Zweitname Nachname'],
-                                    [7, 16, 16],
-                                    '/home/christopher/Dokumente/Uni/SS17/ALDA-17/GlobalMetaData/return_template.html',
-                                    3,
-                                    {'Global':'/home/christopher/Dokumente/Uni/SS17/ALDA-17/00_Tutorialsnake/GlobalFeedback.txt',
-                                     'Feedback':'/home/christopher/Dokumente/Uni/SS17/ALDA-17/00_Tutorialsnake/Feedback.txt'
-                                     },
-                                    'HTML_mail01.html'
-                                    )

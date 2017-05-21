@@ -114,7 +114,7 @@ class Sender(object):
         maxI = len(mailPathDict)
         for mail, path in mailPathDict.items():
             with open(path, 'r') as fd:
-                print('Send Mail %s of %s to %s' % (str(i).zfill(2), str(maxI).zfill(2), mail))
+                print('Send Mail %s of %s to %s' % (str(i + 1).zfill(2), str(maxI).zfill(2), mail))
                 
                 text = fd.read()
                 
