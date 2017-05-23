@@ -180,7 +180,7 @@ def escapeName(name):
     escape = lambda x: x.replace('Ö', 'Oe').replace('Ä', 'Ae') \
                         .replace('Ü', 'Ue').replace('ö', 'oe') \
                         .replace('ä', 'ae').replace('ü', 'ue') \
-                        .replace('ß', 'ss')
+                        .replace('ß', 'ss').capitalize()
     return escape(name)
 
 def compareNames(name1, name2):
@@ -226,14 +226,8 @@ class StudentFilter(object):
                 # otherwise compare name parts 
                 # nameparts are the name splitted by space and each of this
                 # parts capitalize is called (sometimes students are writing 
-                # only lowercase)
-                mkNameparts = lambda s: [x.capitalize() for x in s['Name'].split(' ')]
-                if cmpNameParts(mkNameparts(subm), mkNameparts(student)):
-                    res.append(subm)
-                    indices.remove(i)
-                    break
-                
-                elif cmpNameParts(escapeName(mkNameparts(subm)), mkNameparts(student)):
+                # only lowercase
+                elif compareNames(subm['Name'], student['Name']):
                     res.append(subm)
                     indices.remove(i)
                     break
