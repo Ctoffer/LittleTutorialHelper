@@ -101,7 +101,10 @@ class MuesliApi(object):
         r = self.session.post(self.curURL)
         
         soup = BeautifulSoup(r.text, 'html.parser')
-        anchors = soup.findAll("a", href=re.compile("/lecture/view/\d*"), text = name)
+        anchors = []
+        for anchor in soup.findAll("a", href=re.compile("/lecture/view/\d*")):
+            if anchor.text.strip() == name:
+                anchors.append(anchor)
         
         self.curURL = self.baseURL + anchors[0].get("href")
         

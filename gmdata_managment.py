@@ -152,7 +152,7 @@ def getMoodleDataFromUser (moodleName, moodlePassw):
     with MoodleApi(acc = (moodleName, moodlePassw)) as moodle:
         while True:
             val = ''
-            if lvl > 0 and lvl < 3:
+            if lvl >= 0 and lvl < 3:
                 val = cFL(lvl, data[0], data[1])
             else:
                 break
@@ -168,8 +168,9 @@ def getMoodleDataFromUser (moodleName, moodlePassw):
         courseLink = moodle.curURL
         print('Your tutorial is located here: %s' % courseLink)
         
+    data.append(courseLink)
     print('')
-    return tuple(data.append(courseLink))
+    return tuple(data)
 
 def getMoodleDataFromFile (gMDataPath):
     return (readAttribute(gMDataPath, 'FACILITY'), 
@@ -257,7 +258,7 @@ def createMetaDataFile(gMDPath):
 
     #==========================================================================
 
-    keys = ('MÜSLI_USER', 'MÜSLI_PASSW', 'MOODLE_USER', 'MOODLE_PASSW', 'EMAIL_USER', 'EMAIL_PASSW')
+    keys = ('MÜSLI_USER', 'MÜSLI_PASSW', 'MOODLE_USER', 'MOODLE_PASSW', 'MAIL_USER', 'MAIL_PASSW')
     personalKeys = ('MY_FNAME', 'MY_LNAME', 'MY_MAIL')
     moodleKeys = ('FACILITY', 'SUB_FACILITY', 'COURSE', 'COURSE_LINK')
 
@@ -270,7 +271,7 @@ def createMetaDataFile(gMDPath):
     return result
 
 def modifyMetaData (gMDataPath):
-    keys = ('MÜSLI_USER', 'MÜSLI_PASSW', 'MOODLE_USER', 'MOODLE_PASSW', 'EMAIL_USER', 'EMAIL_PASSW')
+    keys = ('MÜSLI_USER', 'MÜSLI_PASSW', 'MOODLE_USER', 'MOODLE_PASSW', 'MAIL_USER', 'MAIL_PASSW')
     personalKeys = ('MY_FNAME', 'MY_LNAME', 'MY_MAIL')
     moodleKeys = ('FACILITY', 'SUB_FACILITY', 'COURSE', 'COURSE_LINK')
     
@@ -420,8 +421,8 @@ def loadUserFrom(gMDataPath, accName):
     elif accName == 'MOODLE':
         keys = ['MOODLE_USER', 'MOODLE_PASSW']
 
-    elif accName == 'EMAIL':
-        keys = ['EMAIL_USER', 'EMAIL_PASSW']
+    elif accName == 'MAIL':
+        keys = ['MAIL_USER', 'MAIL_PASSW']
 
     else:
         raise ValueError('Unknown account %s' % accName)
@@ -711,7 +712,7 @@ def createExportFile(path):
 
             while True:
                 nm = input('Insert name of student which u want to export: ')
-                student = filt.findStudentInList(nm)
+                student = filt.findStudentByName(nm)
                 if len(student) == 1:
                     student = student[0]
                     break
@@ -992,7 +993,7 @@ class FolderManager(object):
         return loadUserFrom(self.__gMDataPath, 'MOODLE')
 
     def getMailAcc(self):
-        return loadUserFrom(self.__gMDataPath, 'EMAIL')
+        return loadUserFrom(self.__gMDataPath, 'MAIL')
 
     def getMyEmailData(self):
         return getEmailTuple(self.__gMDataPath)

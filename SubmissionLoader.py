@@ -102,7 +102,7 @@ def loadAllArchivesToOrigin (fm, orgPath, tutorLastName, sheetNr):
         subTxtPath = os.path.join(orgPath, 'submissions.txt')
         with open(subTxtPath, 'w') as subTxtF:
             for subm in subms:
-                print(createRow([x for x in subm], maxs), file = subTxtF)
+                print(createRow([x for x in subm], maxs).encode('utf-8'), file = subTxtF)
     
         print('Found %i filtered submissions. Download will start soon.' % len(subms))
         oArchives = moodle.downloadSubmissions(subms, orgPath)
