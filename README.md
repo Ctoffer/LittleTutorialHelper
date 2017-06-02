@@ -18,3 +18,10 @@ Patch 1.2 (21.05.2017 21:00)
     * Can now auto upload to other tutorials
     * Sending mails to external students, which are imported
 * Bug fixes and less hardcodet stuff
+
+Patch 1.3 (02.06.2017 15:57)
+============================
+
+* Fixed annoying and stupid bugs
+* Fixed some weird MÜSLI specific stuff, where subjects needs a strip sometimes
+* Fixed a windows-specific encoding failure
