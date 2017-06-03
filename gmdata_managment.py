@@ -945,7 +945,8 @@ def getStudents(gMdataPath, tid = '*', status = '*'):
                 for i in range(len(keys)):
                     student[keys[i]] = cols[i]
 
-                if student['TID'] in tids and student['Status'] in stati:
+                if student['TID'] in tids or tid == '*' and \
+                    student['Status'] in stati or status == '*':
                     students.append(student)
 
             lastLine = line
