@@ -915,17 +915,16 @@ def getStudents(gMdataPath, tid = '*', status = '*'):
     tids = getTutIDs(gMdataPath)
     stati = ['Exported', 'Local', 'Imported']
 
-    preCheck = lambda x: x[1:] if x.startswith(';') else x
-    postCheck = lambda x: x[:-1] if x.endswith(';') else x
-
-    tid = postCheck(preCheck(tid))
-    status = postCheck(preCheck(status))
+    tid = tid.strip(';')
+    status = status.strip(';')
 
     if tid != '*':
         tids = tid.split(';')
 
     if status != '*':
         stati = status.split(';')
+        
+    #print('Find students in %s with the stati %s' % (str(tid), str(stati)))
 
     path = os.path.join(gMdataPath, 'StudentsList.txt')
     keys = Student.getKeys()
@@ -945,8 +944,8 @@ def getStudents(gMdataPath, tid = '*', status = '*'):
                 for i in range(len(keys)):
                     student[keys[i]] = cols[i]
 
-                if student['TID'] in tids or tid == '*' and \
-                    student['Status'] in stati or status == '*':
+                if (student['TID'] in tids or tid == '*') and \
+                    (student['Status'] in stati or status == '*'):
                     students.append(student)
 
             lastLine = line
